@@ -38,9 +38,9 @@ export const bundledImages: Record<string, string> = {
 };
 const categories = ["Traditional Meals", "Fast Foods", "Sides", "Drinks", "Specials"];
 const packages = [
-  { name: "Traditional", price: 110, text: "Nshima, chicken, beef, kapenta and traditional vegetables." },
-  { name: "Standard", price: 90, text: "A main meal, two sides and a drink." },
-  { name: "Premium", price: 160, text: "Starter, main course, sides, dessert and drinks." },
+  { name: "Traditional", text: "Nshima, chicken, beef, kapenta and traditional vegetables." },
+  { name: "Standard", text: "A main meal, two sides and a drink." },
+  { name: "Premium", text: "Starter, main course, sides, dessert and drinks." },
 ];
 const navigation: Array<[string, string]> = [
   ["menu-section", "Menu"],
@@ -67,6 +67,7 @@ export function NalusKitchen() {
   const [mobileOpen, setMobileOpen] = useState(false);
   const [stage, setStage] = useState<Stage>("cart");
   const [notice, setNotice] = useState("");
+  const [bookingStage, setBookingStage] = useState<"idle" | "sending" | "done" | "error">("idle");
   const [orderRef, setOrderRef] = useState("");
   const [loading, setLoading] = useState(true);
   const [uploadedPhotos, setUploadedPhotos] = useState<Record<string, string>>({});
@@ -154,13 +155,16 @@ export function NalusKitchen() {
   async function submitBooking(event: React.FormEvent<HTMLFormElement>) {
     event.preventDefault();
     const form = new FormData(event.currentTarget);
+    const formElement = event.currentTarget;
+    setBookingStage("sending");
     const { error } = await supabase.rpc("create_booking", {
       p_event_type: String(form.get("eventType")), p_package_name: String(form.get("package")), p_event_date: String(form.get("date")),
       p_event_time: String(form.get("time") || "") || null, p_venue: String(form.get("venue")), p_guests: Number(form.get("guests")),
       p_notes: String(form.get("notes") || "") || null, p_customer_name: String(form.get("name")), p_phone: String(form.get("phone")), p_email: String(form.get("email") || "") || null,
     });
-    setNotice(error ? "We couldn’t send your request. Please call us instead." : "Your catering request is in. We’ll call you to confirm the details.");
-    if (!error) event.currentTarget.reset();
+    if (error) { setBookingStage("error"); return; }
+    formElement.reset();
+    setBookingStage("done");
   }
 
   return <div className="min-h-screen bg-background text-foreground">
@@ -199,8 +203,17 @@ export function NalusKitchen() {
       </div></section>
 
       <section id="catering" className="scroll-mt-18 bg-brand-green py-20 text-brand-cream lg:py-28"><div className="mx-auto grid max-w-7xl gap-14 px-5 lg:grid-cols-[.8fr_1.2fr] lg:px-8">
-        <div><p className="eyebrow text-brand-gold">Catering & celebrations</p><h2 className="section-title text-brand-cream">Good food for your biggest days.</h2><p className="mt-5 max-w-lg text-brand-cream/70">Weddings, kitchen parties, conferences, birthdays, funerals and intimate gatherings—tell us what you need.</p><div className="mt-8 divide-y divide-brand-cream/15 border-y border-brand-cream/15">{packages.map((pack) => <div key={pack.name} className="py-5"><div className="flex justify-between gap-4"><h3 className="font-display text-xl">{pack.name}</h3><strong>{money(pack.price)}/guest</strong></div><p className="mt-1 text-sm text-brand-cream/60">{pack.text}</p></div>)}</div></div>
-        <form onSubmit={submitBooking} className="grid gap-4 rounded-md bg-background p-6 text-foreground sm:grid-cols-2 sm:p-8"><label className="field-label">Event type<select name="eventType" required className="field"><option value="">Choose one</option>{["Wedding","Birthday party","Kitchen party","Corporate event","Conference","Traditional ceremony","Funeral","Private gathering"].map(v=><option key={v}>{v}</option>)}</select></label><label className="field-label">Meal package<select name="package" required className="field"><option value="">Choose one</option>{packages.map(v=><option key={v.name}>{v.name}</option>)}</select></label><label className="field-label">Event date<input name="date" type="date" required className="field"/></label><label className="field-label">Event time<input name="time" type="time" className="field"/></label><label className="field-label">Venue<input name="venue" required placeholder="Venue or area" className="field"/></label><label className="field-label">Number of guests<input name="guests" type="number" min="1" required placeholder="80" className="field"/></label><label className="field-label">Your name<input name="name" required className="field"/></label><label className="field-label">Phone number<input name="phone" type="tel" required className="field"/></label><label className="field-label sm:col-span-2">Email (optional)<input name="email" type="email" className="field"/></label><label className="field-label sm:col-span-2">Anything we should know?<textarea name="notes" rows={3} className="field resize-none"/></label><AppButton type="submit" className="bg-primary text-primary-foreground sm:col-span-2">Request catering <ArrowRight size={17}/></AppButton></form>
+        <div><p className="eyebrow text-brand-gold">Catering & celebrations</p><h2 className="section-title text-brand-cream">Good food for your biggest days.</h2><p className="mt-5 max-w-lg text-brand-cream/70">Weddings, kitchen parties, conferences, birthdays, funerals and intimate gatherings—tell us what you need.</p><div className="mt-8 divide-y divide-brand-cream/15 border-y border-brand-cream/15">{packages.map((pack) => <div key={pack.name} className="py-5"><h3 className="font-display text-xl">{pack.name}</h3><p className="mt-1 text-sm text-brand-cream/60">{pack.text}</p></div>)}</div></div>
+        {bookingStage === "done" ? (
+          <div className="rounded-md bg-background p-8 text-foreground sm:col-span-2">
+            <div className="grid size-12 place-items-center rounded-full bg-brand-green text-brand-cream"><Check size={24}/></div>
+            <h3 className="mt-5 font-display text-2xl">Request received.</h3>
+            <p className="mt-2 text-sm text-muted-foreground">Your catering request is in. We’ll call you to confirm the details.</p>
+            <button type="button" onClick={() => setBookingStage("idle")} className="mt-6 inline-flex min-h-11 items-center rounded-sm border border-border px-5 py-2.5 text-sm font-semibold transition hover:bg-muted">Make another request</button>
+          </div>
+        ) : (
+        <form onSubmit={submitBooking} className="grid gap-4 rounded-md bg-background p-6 text-foreground sm:grid-cols-2 sm:p-8"><label className="field-label">Event type<select name="eventType" required className="field"><option value="">Choose one</option>{["Wedding","Birthday party","Kitchen party","Corporate event","Conference","Traditional ceremony","Funeral","Private gathering"].map(v=><option key={v}>{v}</option>)}</select></label><label className="field-label">Meal package<select name="package" required className="field"><option value="">Choose one</option>{packages.map(v=><option key={v.name}>{v.name}</option>)}</select></label><label className="field-label">Event date<input name="date" type="date" required className="field"/></label><label className="field-label">Event time<input name="time" type="time" className="field"/></label><label className="field-label">Venue<input name="venue" required placeholder="Venue or area" className="field"/></label><label className="field-label">Number of guests<input name="guests" type="number" min="1" required placeholder="80" className="field"/></label><label className="field-label">Your name<input name="name" required className="field"/></label><label className="field-label">Phone number<input name="phone" type="tel" required className="field"/></label><label className="field-label sm:col-span-2">Email (optional)<input name="email" type="email" className="field"/></label><label className="field-label sm:col-span-2">Anything we should know?<textarea name="notes" rows={3} className="field resize-none"/></label>{bookingStage === "error" && <p className="rounded-sm bg-destructive/10 p-3 text-sm text-destructive sm:col-span-2">We couldn’t send your request. Please call us instead.</p>}<AppButton type="submit" disabled={bookingStage === "sending"} className="bg-primary text-primary-foreground sm:col-span-2">{bookingStage === "sending" ? "Sending…" : <>Request catering <ArrowRight size={17}/></>}</AppButton></form>
+        )}
       </div></section>
 
       <section id="story" className="scroll-mt-18 py-20 lg:py-28"><div className="mx-auto grid max-w-7xl items-center gap-12 px-5 lg:grid-cols-2 lg:px-8"><img src={sundayPlatter} width={1024} height={1024} loading="lazy" alt="A generous Nalu's Kitchen sharing platter" className="aspect-[5/4] h-full w-full rounded-md object-cover"/><div><p className="eyebrow">Our table, your table</p><h2 className="section-title">Made with memory. Served with care.</h2><p className="mt-6 text-lg leading-8 text-muted-foreground">Nalu’s Kitchen began with a family table and neighbours looking for a proper home-cooked meal. We still slow-stir the nshima, pound fresh ingredients and give every order the same care—whether it feeds one person or a hundred.</p><div className="mt-8 grid gap-5 sm:grid-cols-2"><div className="border-t border-primary pt-4"><h3 className="font-semibold">Local ingredients</h3><p className="mt-1 text-sm text-muted-foreground">Fresh produce and honest flavours.</p></div><div className="border-t border-primary pt-4"><h3 className="font-semibold">Warm service</h3><p className="mt-1 text-sm text-muted-foreground">Every guest is welcomed like family.</p></div></div></div></div></section>
