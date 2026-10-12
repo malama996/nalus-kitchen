@@ -1,0 +1,10 @@
+[build]
+  command = "DEPLOY_TARGET=netlify npm run build"
+  publish = "dist/client"
+
+[build.environment]
+  NODE_VERSION = "22"
+
+[dev]
+  command = "npm run dev"
+  port = 3000
